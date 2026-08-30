@@ -1,0 +1,47 @@
+# Maven
+target/
+
+# Node
+node_modules/
+dist/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Build output
+out/
+build/
+
+# Runtime output
+output/*
+!output/.gitkeep
+
+# Local test inputs
+input/*
+!input/.gitkeep
+
+# Real-ESRGAN model weights
+models/*.bin
+models/*.param
+
+# Local binaries
+bin/*.exe
+bin/*.dll
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
