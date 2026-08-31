@@ -1,47 +1,29 @@
-# Maven
-target/
-
-# Node
+# Dependencies
 node_modules/
+
+# Frontend and Rust build targets
 dist/
-
-# Tauri
+target/
 src-tauri/target/
-src-tauri/gen/
 
-# Build output
-out/
-build/
+# Local input and output runs
+input/
+output/
+release/
 
-# Runtime output
-output/*
-!output/.gitkeep
-
-# Local test inputs
-input/*
-!input/.gitkeep
-
-# Real-ESRGAN model weights
+# Neural model binary weights
 models/*.bin
-models/*.param
 
-# Local binaries
-bin/*.exe
-bin/*.dll
-
-# IDE
+# IDE and Editor files
 .idea/
 .vscode/
-*.iml
+*.swp
+*.swo
 
-# OS
+# Operating System files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Logs
 *.log
-
-# Environment files
-.env
-.env.*
-!.env.example

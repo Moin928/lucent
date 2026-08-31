@@ -1,111 +1,46 @@
-# Resolve
+# Lucent
 
-A lightweight local image upscaler built for personal use.
+A local image upscaler for Windows built with Tauri, React, and Real ESRGAN.
 
-Resolve uses pretrained super resolution models to increase image resolution while preserving and reconstructing fine details. Everything runs locally, so your images stay on your machine.
+Lucent runs neural super resolution on your own GPU without sending pictures to any remote server or subscription service.
 
-## Features
+## Highlights
 
-• Local image upscaling
-• Real ESRGAN based super resolution
-• GPU accelerated inference through Vulkan
-• 2x and 4x upscaling
-• Supports common image formats
-• No cloud processing
-• Simple desktop interface
+* Runs entirely on device with zero internet access required
+* Direct Vulkan hardware acceleration on discrete and integrated graphics
+* Windows File Explorer integration for one click upscaling
+* Interactive before and after comparison slider
+* Support for PNG, JPG, JPEG, and WebP formats
+* Up to 4x scaling multiplier
 
-## How it works
+## Tech Stack
 
-Resolve handles the image processing locally and passes the image to a pretrained super resolution model for inference.
+* Frontend: React, TypeScript, Vite
+* Desktop Shell: Tauri v2 in Rust
+* Neural Engine: Real ESRGAN NCNN Vulkan
 
-```text
-Input image
-    ↓
-Resolve
-    ↓
-Real ESRGAN
-    ↓
-GPU inference
-    ↓
-Upscaled image
+## Building from Source
+
+Prerequisites:
+* Node.js 18 or newer
+* Rust 1.77 or newer
+* Windows with a Vulkan capable GPU
+
+Install dependencies and start development server:
+
+```powershell
+npm install
+npm run tauri dev
 ```
 
-## Requirements
+Build production installer:
 
-• Java 17 or newer
-• A Vulkan capable GPU
-• Real ESRGAN NCNN Vulkan
-• Windows currently supported
-
-## Getting started
-
-Clone the repository:
-
-```bash
-git clone https://github.com/yourusername/resolve.git
-cd resolve
+```powershell
+npm run tauri build
 ```
 
-Place the Real ESRGAN executable and required model files in the expected directories.
+The compiled installer will be in `src-tauri/target/release/bundle/nsis/`.
 
-Build the application:
+## Author
 
-```bash
-./gradlew build
-```
-
-Run it with:
-
-```bash
-./gradlew run
-```
-
-## Output
-
-An input such as:
-
-```text
-photo.jpg
-```
-
-can be processed into:
-
-```text
-photo_4x.png
-```
-
-The original file is left untouched.
-
-## Models
-
-Resolve currently uses Real ESRGAN models for image super resolution.
-
-The default model is:
-
-```text
-Real ESRGAN x4plus
-```
-
-Additional models can be added later for different types of images.
-
-## Project structure
-
-```text
-resolve/
-├── bin/
-├── models/
-├── src/
-│   └── main/
-│       └── java/
-├── build.gradle
-├── settings.gradle
-└── README.md
-```
-
-## Why this exists
-
-This is a personal utility rather than a commercial application. The goal is to have a simple way to upscale images locally without sending them to an online service.
-
-## License
-
-Add your preferred license here.
+Copyright 2026 Qureshi Mohammed Moin. All rights reserved.
