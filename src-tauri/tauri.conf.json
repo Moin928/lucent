@@ -24,11 +24,16 @@
         "theme": "Dark",
         "decorations": true,
         "shadow": true,
-        "visible": true
+        "visible": true,
+        "additionalBrowserArgs": "--enable-gpu-rasterization --enable-zero-copy --use-angle=d3d11 --disable-software-rasterizer --enable-accelerated-2d-canvas --ignore-gpu-blocklist"
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["**"]
+      }
     }
   },
   "bundle": {

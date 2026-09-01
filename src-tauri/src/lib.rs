@@ -424,7 +424,49 @@ async fn upscale_image(
         return Err("Real-ESRGAN completed but output image was not created".to_string());
     }
 
-    Ok(actual_output_path.to_string_lossy().to_string())
+    // Read the output and base64-encode so the frontend can use a data URL directly
+    // (bypasses WebView2 sandbox — no asset protocol configuration needed)
+    let output_bytes = fs::read(&actual_output_path)
+        .map_err(|e| format!("Failed to read output image: {}", e))?;
+
+    let b64: String = {
+        const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut out = String::with_capacity((output_bytes.len() * 4 / 3) + 4);
+        let mut i = 0;
+        let len = output_bytes.len();
+        while i + 2 < len {
+            let a = output_bytes[i] as usize;
+            let b = output_bytes[i + 1] as usize;
+            let c = output_bytes[i + 2] as usize;
+            out.push(TABLE[(a >> 2) & 63] as char);
+            out.push(TABLE[((a << 4) | (b >> 4)) & 63] as char);
+            out.push(TABLE[((b << 2) | (c >> 6)) & 63] as char);
+            out.push(TABLE[c & 63] as char);
+            i += 3;
+        }
+        let rem = len - i;
+        if rem == 1 {
+            let a = output_bytes[i] as usize;
+            out.push(TABLE[(a >> 2) & 63] as char);
+            out.push(TABLE[(a << 4) & 63] as char);
+            out.push_str("==");
+        } else if rem == 2 {
+            let a = output_bytes[i] as usize;
+            let b = output_bytes[i + 1] as usize;
+            out.push(TABLE[(a >> 2) & 63] as char);
+            out.push(TABLE[((a << 4) | (b >> 4)) & 63] as char);
+            out.push(TABLE[(b << 2) & 63] as char);
+            out.push('=');
+        }
+        out
+    };
+
+    // Return "path|base64" so frontend gets both the save path and the image data
+    Ok(format!(
+        "{}|{}",
+        actual_output_path.to_string_lossy(),
+        b64
+    ))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -171,7 +171,8 @@ export function App() {
 
       if (isTauri) {
         // Direct C++ Vulkan execution via Rust
-        const absoluteOutputPath = await invoke<string>("upscale_image", {
+        // Returns "absolute/path/to/output.png|<base64data>"
+        const rawResult = await invoke<string>("upscale_image", {
           inputPath: filePath,
           fileName: selectedFile.name,
           imageBytes: fileBytes,
@@ -179,10 +180,19 @@ export function App() {
           gpuId: selectedGpuId,
         });
 
-        // Convert the on-disk output image path directly to a high-speed asset URL
-        const realAssetUrl = convertFileSrc(absoluteOutputPath) + `?t=${Date.now()}`;
-        setOutputPath(absoluteOutputPath);
-        setUpscaledUrl(realAssetUrl);
+        const pipeIndex = rawResult.indexOf("|");
+        const absPath = pipeIndex > -1 ? rawResult.slice(0, pipeIndex) : rawResult;
+        const b64 = pipeIndex > -1 ? rawResult.slice(pipeIndex + 1) : null;
+
+        setOutputPath(absPath);
+
+        if (b64) {
+          // Use base64 data URL directly — bypasses all WebView sandbox restrictions
+          setUpscaledUrl(`data:image/png;base64,${b64}`);
+        } else {
+          setUpscaledUrl(convertFileSrc(absPath) + `?t=${Date.now()}`);
+        }
+
         setStage("completed");
       } else {
         // Web fallback
