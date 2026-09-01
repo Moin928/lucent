@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import type { UpscaleScale, GpuDevice } from "../types";
-import { Cpu, Zap } from "lucide-react";
+import { Zap, AlertTriangle } from "lucide-react";
 
 interface ControlsProps {
   scale: UpscaleScale;
@@ -19,6 +19,8 @@ export const Controls: FC<ControlsProps> = ({
   onGpuChange,
   disabled = false,
 }) => {
+  const hasDedicatedGpu = gpus.length > 0;
+
   return (
     <div className="dock-controls-container">
       <div className="scale-control-group">
@@ -30,7 +32,7 @@ export const Controls: FC<ControlsProps> = ({
               type="button"
               className={`tactile-round-btn ${scale === s ? "is-selected" : ""}`}
               onClick={() => onScaleChange(s)}
-              disabled={disabled}
+              disabled={disabled || !hasDedicatedGpu}
               title={`Upscale ${s}×`}
             >
               <span className="round-btn-gloss" />
@@ -40,43 +42,38 @@ export const Controls: FC<ControlsProps> = ({
         </div>
       </div>
 
-      {/* Hardware GPU Selector */}
+      {/* Hardware Dedicated GPU Indicator */}
       <div className="gpu-control-group">
-        <span className="scale-group-label">PROCESSOR</span>
+        <span className="scale-group-label">HARDWARE ENGINE</span>
         <div className="gpu-select-cluster">
-          <button
-            type="button"
-            className={`gpu-option-btn ${selectedGpuId === "auto" ? "is-active" : ""}`}
-            onClick={() => onGpuChange("auto")}
-            disabled={disabled}
-            title="Auto-select fastest GPU"
-          >
-            <Zap size={12} />
-            <span>Auto</span>
-          </button>
+          {hasDedicatedGpu ? (
+            gpus.map((gpu) => {
+              const shortName = gpu.name
+                .replace("NVIDIA GeForce", "NVIDIA")
+                .replace("Laptop GPU", "")
+                .trim();
 
-          {gpus.map((gpu) => {
-            const shortName = gpu.name
-              .replace("NVIDIA GeForce", "RTX")
-              .replace("Laptop GPU", "")
-              .replace("Intel(R)", "Intel")
-              .replace("Graphics", "")
-              .trim();
-
-            return (
-              <button
-                key={gpu.id}
-                type="button"
-                className={`gpu-option-btn ${selectedGpuId === gpu.id ? "is-active" : ""}`}
-                onClick={() => onGpuChange(gpu.id)}
-                disabled={disabled}
-                title={`${gpu.name} (GPU ${gpu.id})`}
-              >
-                {gpu.is_discrete ? <Zap size={12} /> : <Cpu size={12} />}
-                <span>{shortName}</span>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={gpu.id}
+                  type="button"
+                  className={`gpu-option-btn ${selectedGpuId === gpu.id ? "is-active" : ""}`}
+                  onClick={() => onGpuChange(gpu.id)}
+                  disabled={disabled}
+                  title={`${gpu.name} (Dedicated Hardware GPU)`}
+                >
+                  <Zap size={13} className="text-emerald" />
+                  <span>{shortName}</span>
+                  <span className="gpu-active-badge">ACTIVE</span>
+                </button>
+              );
+            })
+          ) : (
+            <div className="gpu-option-btn is-missing" title="No discrete GPU found">
+              <AlertTriangle size={13} className="text-amber" />
+              <span>No Dedicated GPU</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

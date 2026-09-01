@@ -326,9 +326,9 @@ export function App() {
                   <span className="engine-name">Real-ESRGAN x4plus</span>
                   <span className="engine-sep">•</span>
                   <span className="engine-sub">
-                    {selectedGpuId === "auto"
-                      ? "Auto GPU"
-                      : gpus.find((g) => g.id === selectedGpuId)?.name.replace("NVIDIA GeForce", "RTX").replace("Laptop GPU", "").trim() || "GPU"}
+                    {gpus.length > 0
+                      ? gpus[0].name.replace("NVIDIA GeForce", "NVIDIA").replace("Laptop GPU", "").trim()
+                      : "Dedicated GPU Required"}
                   </span>
                 </div>
               </div>

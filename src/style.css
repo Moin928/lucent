@@ -659,37 +659,49 @@ button { border: 0; background: none; }
 .gpu-option-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 7px;
+  padding: 8px 15px;
   border-radius: 999px;
   background: linear-gradient(165deg, rgba(12, 40, 26, 0.95) 0%, rgba(6, 22, 14, 0.98) 100%);
   border: 1px solid var(--border-emerald);
-  color: var(--text-muted);
+  color: var(--text-main);
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  cursor: pointer;
+  cursor: default;
   box-shadow:
     0 3px 0 1px rgba(0, 0, 0, 0.5),
     0 4px 12px rgba(0, 0, 0, 0.3);
   transition: all 0.15s ease;
 }
 
-.gpu-option-btn:hover:not(:disabled) {
-  background: linear-gradient(165deg, rgba(20, 60, 38, 0.95) 0%, rgba(10, 36, 22, 0.98) 100%);
-  border-color: var(--border-emerald-bright);
-  color: #fff;
-  transform: translateY(-1px);
-}
-
 .gpu-option-btn.is-active {
-  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
-  color: #021c0e;
+  background: linear-gradient(165deg, rgba(6, 40, 24, 0.98) 0%, rgba(3, 20, 12, 0.98) 100%);
+  color: #f0fdf4;
   font-weight: 700;
   border-color: var(--emerald-bright);
   box-shadow:
-    0 0 14px rgba(52, 211, 153, 0.4),
+    0 0 16px rgba(52, 211, 153, 0.35),
     0 2px 0 1px rgba(2, 60, 36, 0.9);
+}
+
+.gpu-active-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #10b981;
+  color: #022412;
+  font-family: var(--font-magic);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-left: 2px;
+}
+
+.gpu-option-btn.is-missing {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(45, 26, 6, 0.8);
+  color: #fef3c7;
 }
 
 

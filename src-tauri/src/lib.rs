@@ -242,7 +242,7 @@ pub struct GpuDevice {
     pub is_discrete: bool,
 }
 
-/// Detects available GPUs by querying Real-ESRGAN binary
+/// Detects dedicated hardware GPUs exclusively
 #[tauri::command]
 fn get_available_gpus() -> Vec<GpuDevice> {
     let mut gpus = Vec::new();
@@ -255,7 +255,8 @@ fn get_available_gpus() -> Vec<GpuDevice> {
     if exe_path.exists() {
         let mut cmd = Command::new(&exe_path);
         cmd.current_dir(&project_root);
-        cmd.arg("-v");
+        // Pass dummy arguments with -v so Real-ESRGAN enumerates Vulkan physical devices
+        cmd.args(["-i", "__enum_test__.png", "-o", "__enum_test_out__.png", "-v"]);
         #[cfg(target_os = "windows")]
         {
             use std::os::windows::process::CommandExt;
@@ -279,6 +280,7 @@ fn get_available_gpus() -> Vec<GpuDevice> {
                             let id_str = inside[..space_pos].trim();
                             let name = inside[space_pos + 1..].trim();
                             if let Ok(_num) = id_str.parse::<u32>() {
+                                // Filter out software emulation / Direct3D wrapper layers
                                 if !name.contains("Direct3D12") && !name.contains("Basic Render") && seen_ids.insert(id_str.to_string()) {
                                     let lower = name.to_lowercase();
                                     let is_discrete = lower.contains("nvidia")
@@ -286,13 +288,19 @@ fn get_available_gpus() -> Vec<GpuDevice> {
                                         || lower.contains("rtx")
                                         || lower.contains("gtx")
                                         || lower.contains("radeon rx")
-                                        || lower.contains("discrete");
+                                        || lower.contains("radeon pro")
+                                        || lower.contains("discrete")
+                                        || (lower.contains("amd") && !lower.contains("graphics") && !lower.contains("radeon(tm)"))
+                                        || lower.contains("arc");
 
-                                    gpus.push(GpuDevice {
-                                        id: id_str.to_string(),
-                                        name: name.to_string(),
-                                        is_discrete,
-                                    });
+                                    // Only include dedicated GPUs
+                                    if is_discrete {
+                                        gpus.push(GpuDevice {
+                                            id: id_str.to_string(),
+                                            name: name.to_string(),
+                                            is_discrete: true,
+                                        });
+                                    }
                                 }
                             }
                         }
@@ -302,22 +310,27 @@ fn get_available_gpus() -> Vec<GpuDevice> {
         }
     }
 
-    gpus.sort_by(|a, b| b.is_discrete.cmp(&a.is_discrete));
     gpus
 }
 
-/// Directly invokes Real-ESRGAN Vulkan executable
+/// Enforces dedicated GPU execution for neural upscaling
 #[tauri::command]
 async fn upscale_image(
     input_path: Option<String>,
     file_name: String,
     image_bytes: Option<Vec<u8>>,
     scale: u32,
-    gpu_id: Option<String>,
+    _gpu_id: Option<String>,
 ) -> Result<String, String> {
     if scale != 2 && scale != 3 && scale != 4 {
         return Err("Scale must be 2, 3, or 4".to_string());
     }
+
+    // Strictly enforce dedicated GPU requirement
+    let detected_gpus = get_available_gpus();
+    let dedicated_gpu = detected_gpus.first().ok_or_else(|| {
+        "No dedicated GPU detected. Lucent strictly requires a dedicated NVIDIA or AMD graphics card to perform GPU upscaling.".to_string()
+    })?;
 
     let project_root = find_project_root();
     let exe_path = project_root
@@ -375,20 +388,6 @@ async fn upscale_image(
         .unwrap_or("image");
 
     let actual_output_path = output_dir.join(format!("{}_{}x.png", base_name, scale));
-    let chosen_gpu = match gpu_id.as_deref() {
-        Some(id) if id != "auto" => id.to_string(),
-        _ => {
-            // Automatically prioritize discrete GPU (e.g. NVIDIA RTX)
-            let detected = get_available_gpus();
-            if let Some(discrete) = detected.iter().find(|g| g.is_discrete) {
-                discrete.id.clone()
-            } else if let Some(first) = detected.first() {
-                first.id.clone()
-            } else {
-                "0".to_string()
-            }
-        }
-    };
 
     let mut cmd = Command::new(&exe_path);
     cmd.current_dir(&project_root);
@@ -398,7 +397,7 @@ async fn upscale_image(
         "-m", models_dir.to_str().unwrap_or("models"),
         "-n", "realesrgan-x4plus",
         "-s", &scale.to_string(),
-        "-g", &chosen_gpu,
+        "-g", &dedicated_gpu.id,
     ]);
 
     #[cfg(target_os = "windows")]
