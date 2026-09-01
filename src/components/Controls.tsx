@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import type { UpscaleScale, GpuDevice } from "../types";
 import { Zap, AlertTriangle } from "lucide-react";
+import { formatGpuName } from "../utils/format";
 
 interface ControlsProps {
   scale: UpscaleScale;
@@ -19,7 +20,7 @@ export const Controls: FC<ControlsProps> = ({
   onGpuChange,
   disabled = false,
 }) => {
-  const hasDedicatedGpu = gpus.length > 0;
+  const hasGpu = gpus.length > 0;
 
   return (
     <div className="dock-controls-container">
@@ -32,7 +33,7 @@ export const Controls: FC<ControlsProps> = ({
               type="button"
               className={`tactile-round-btn ${scale === s ? "is-selected" : ""}`}
               onClick={() => onScaleChange(s)}
-              disabled={disabled || !hasDedicatedGpu}
+              disabled={disabled || !hasGpu}
               title={`Upscale ${s}×`}
             >
               <span className="round-btn-gloss" />
@@ -42,36 +43,34 @@ export const Controls: FC<ControlsProps> = ({
         </div>
       </div>
 
-      {/* Hardware Dedicated GPU Indicator */}
+      {/* Hardware GPU Indicator */}
       <div className="gpu-control-group">
         <span className="scale-group-label">HARDWARE ENGINE</span>
         <div className="gpu-select-cluster">
-          {hasDedicatedGpu ? (
+          {hasGpu ? (
             gpus.map((gpu) => {
-              const shortName = gpu.name
-                .replace("NVIDIA GeForce", "NVIDIA")
-                .replace("Laptop GPU", "")
-                .trim();
+              const shortName = formatGpuName(gpu.name);
+              const isActive = selectedGpuId === gpu.id || (selectedGpuId === "auto" && gpus[0].id === gpu.id);
 
               return (
                 <button
                   key={gpu.id}
                   type="button"
-                  className={`gpu-option-btn ${selectedGpuId === gpu.id ? "is-active" : ""}`}
+                  className={`gpu-option-btn ${isActive ? "is-active" : ""}`}
                   onClick={() => onGpuChange(gpu.id)}
                   disabled={disabled}
-                  title={`${gpu.name} (Dedicated Hardware GPU)`}
+                  title={`${gpu.name} (GPU ${gpu.id})`}
                 >
-                  <Zap size={13} className="text-emerald" />
+                  <Zap size={13} className={isActive ? "text-emerald" : "text-muted"} />
                   <span>{shortName}</span>
-                  <span className="gpu-active-badge">ACTIVE</span>
+                  {isActive && <span className="gpu-active-badge">ACTIVE</span>}
                 </button>
               );
             })
           ) : (
-            <div className="gpu-option-btn is-missing" title="No discrete GPU found">
+            <div className="gpu-option-btn is-missing" title="No Vulkan-capable GPU detected">
               <AlertTriangle size={13} className="text-amber" />
-              <span>No Dedicated GPU</span>
+              <span>No Compatible GPU</span>
             </div>
           )}
         </div>

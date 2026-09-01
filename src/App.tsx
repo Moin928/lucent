@@ -9,6 +9,7 @@ import { Controls } from "./components/Controls";
 import { Status } from "./components/Status";
 import { ContextMenu } from "./components/ContextMenu";
 import type { UpscaleScale, ProcessingStage, GpuDevice } from "./types";
+import { formatGpuName } from "./utils/format";
 import logoImg from "./assets/lucent-logo.png";
 
 export function App() {
@@ -337,8 +338,8 @@ export function App() {
                   <span className="engine-sep">•</span>
                   <span className="engine-sub">
                     {gpus.length > 0
-                      ? gpus[0].name.replace("NVIDIA GeForce", "NVIDIA").replace("Laptop GPU", "").trim()
-                      : "Dedicated GPU Required"}
+                      ? formatGpuName(gpus.find((g) => g.id === selectedGpuId)?.name || gpus[0].name)
+                      : "Vulkan GPU Required"}
                   </span>
                 </div>
               </div>

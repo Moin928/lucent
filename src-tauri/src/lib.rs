@@ -137,29 +137,37 @@ fn register_context_menu() -> Result<(), String> {
             .map_err(|e| format!("Cannot find exe path: {}", e))?;
         let exe_str = exe_path.to_string_lossy();
 
+        // 1. Universal image filter on * with AppliesTo (Appears instantly on Windows 10 & 11)
+        let star_reg_key = r"HKCU\Software\Classes\*\shell\LucentUpscale";
+        let star_cmd_key = format!(r"{}\command", star_reg_key);
+        let _ = Command::new("reg")
+            .args(["add", star_reg_key, "/ve", "/t", "REG_SZ", "/d", "Upscale with Lucent", "/f"])
+            .output();
+        let _ = Command::new("reg")
+            .args(["add", star_reg_key, "/v", "Icon", "/t", "REG_SZ", "/d", &format!("\"{}\",0", exe_str), "/f"])
+            .output();
+        let _ = Command::new("reg")
+            .args(["add", star_reg_key, "/v", "AppliesTo", "/t", "REG_SZ", "/d", "System.FileExtension:=.png OR System.FileExtension:=.jpg OR System.FileExtension:=.jpeg OR System.FileExtension:=.webp", "/f"])
+            .output();
+        let _ = Command::new("reg")
+            .args(["add", &star_cmd_key, "/ve", "/t", "REG_SZ", "/d", &format!("\"{}\" \"%1\"", exe_str), "/f"])
+            .output();
+
+        // 2. SystemFileAssociations for standard image classes
         let extensions = [
             "image",
             ".png",
             ".jpg",
             ".jpeg",
             ".webp",
-            "pngfile",
-            "jpegfile",
         ];
 
         for target in &extensions {
-            let reg_key = if *target == "image" {
-                format!("HKCU\\Software\\Classes\\SystemFileAssociations\\image\\shell\\LucentUpscale")
-            } else if target.starts_with('.') {
-                format!("HKCU\\Software\\Classes\\SystemFileAssociations\\{}\\shell\\LucentUpscale", target)
-            } else {
-                format!("HKCU\\Software\\Classes\\{}\\shell\\LucentUpscale", target)
-            };
-
-            let cmd_key = format!("{}\\command", reg_key);
+            let reg_key = format!(r"HKCU\Software\Classes\SystemFileAssociations\{}\shell\LucentUpscale", target);
+            let cmd_key = format!(r"{}\command", reg_key);
 
             let _ = Command::new("reg")
-                .args(["add", &reg_key, "/v", "", "/t", "REG_SZ", "/d", "Upscale with Lucent", "/f"])
+                .args(["add", &reg_key, "/ve", "/t", "REG_SZ", "/d", "Upscale with Lucent", "/f"])
                 .output();
 
             let _ = Command::new("reg")
@@ -167,7 +175,7 @@ fn register_context_menu() -> Result<(), String> {
                 .output();
 
             let _ = Command::new("reg")
-                .args(["add", &cmd_key, "/v", "", "/t", "REG_SZ", "/d", &format!("\"{}\" \"%1\"", exe_str), "/f"])
+                .args(["add", &cmd_key, "/ve", "/t", "REG_SZ", "/d", &format!("\"{}\" \"%1\"", exe_str), "/f"])
                 .output();
         }
 
@@ -185,25 +193,20 @@ fn register_context_menu() -> Result<(), String> {
 fn unregister_context_menu() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
+        let _ = Command::new("reg")
+            .args(["delete", r"HKCU\Software\Classes\*\shell\LucentUpscale", "/f"])
+            .output();
+
         let extensions = [
             "image",
             ".png",
             ".jpg",
             ".jpeg",
             ".webp",
-            "pngfile",
-            "jpegfile",
         ];
 
         for target in &extensions {
-            let reg_key = if *target == "image" {
-                format!("HKCU\\Software\\Classes\\SystemFileAssociations\\image\\shell\\LucentUpscale")
-            } else if target.starts_with('.') {
-                format!("HKCU\\Software\\Classes\\SystemFileAssociations\\{}\\shell\\LucentUpscale", target)
-            } else {
-                format!("HKCU\\Software\\Classes\\{}\\shell\\LucentUpscale", target)
-            };
-
+            let reg_key = format!(r"HKCU\Software\Classes\SystemFileAssociations\{}\shell\LucentUpscale", target);
             let _ = Command::new("reg")
                 .args(["delete", &reg_key, "/f"])
                 .output();
@@ -223,7 +226,7 @@ fn unregister_context_menu() -> Result<(), String> {
 fn is_context_menu_registered() -> bool {
     #[cfg(target_os = "windows")]
     {
-        let reg_key = "HKCU\\Software\\Classes\\SystemFileAssociations\\image\\shell\\LucentUpscale";
+        let reg_key = r"HKCU\Software\Classes\*\shell\LucentUpscale";
         Command::new("reg")
             .args(["query", reg_key])
             .output()
@@ -242,7 +245,7 @@ pub struct GpuDevice {
     pub is_discrete: bool,
 }
 
-/// Detects dedicated hardware GPUs exclusively
+/// Detects dedicated & integrated Vulkan hardware GPUs (AMD Radeon, NVIDIA, Intel Arc, etc.)
 #[tauri::command]
 fn get_available_gpus() -> Vec<GpuDevice> {
     let mut gpus = Vec::new();
@@ -280,25 +283,57 @@ fn get_available_gpus() -> Vec<GpuDevice> {
                             let id_str = inside[..space_pos].trim();
                             let name = inside[space_pos + 1..].trim();
                             if let Ok(_num) = id_str.parse::<u32>() {
-                                // Filter out software emulation / Direct3D wrapper layers
-                                if !name.contains("Direct3D12") && !name.contains("Basic Render") && seen_ids.insert(id_str.to_string()) {
-                                    let lower = name.to_lowercase();
-                                    let is_discrete = lower.contains("nvidia")
-                                        || lower.contains("geforce")
-                                        || lower.contains("rtx")
-                                        || lower.contains("gtx")
-                                        || lower.contains("radeon rx")
-                                        || lower.contains("radeon pro")
-                                        || lower.contains("discrete")
-                                        || (lower.contains("amd") && !lower.contains("graphics") && !lower.contains("radeon(tm)"))
-                                        || lower.contains("arc");
+                                let norm = name.to_lowercase()
+                                    .replace("(r)", "")
+                                    .replace("(tm)", "")
+                                    .replace("  ", " ");
 
-                                    // Only include dedicated GPUs
-                                    if is_discrete {
+                                // Filter out software emulation / Direct3D wrapper layers
+                                let is_software_wrapper = norm.contains("direct3d12")
+                                    || norm.contains("basic render")
+                                    || norm.contains("software")
+                                    || norm.contains("llvmpipe")
+                                    || norm.contains("warp");
+
+                                if !is_software_wrapper && seen_ids.insert(id_str.to_string()) {
+                                    let is_nvidia = norm.contains("nvidia")
+                                        || norm.contains("geforce")
+                                        || norm.contains("rtx")
+                                        || norm.contains("gtx")
+                                        || norm.contains("quadro")
+                                        || norm.contains("tesla");
+
+                                    let is_amd = norm.contains("amd")
+                                        || norm.contains("radeon")
+                                        || norm.contains("ati")
+                                        || norm.contains("firepro");
+
+                                    let is_intel_arc = norm.contains("arc")
+                                        || norm.contains("iris xe max");
+
+                                    // Dedicated / Discrete GPU check
+                                    let is_discrete = is_nvidia
+                                        || is_intel_arc
+                                        || (is_amd && (
+                                            norm.contains("rx")
+                                                || norm.contains("pro")
+                                                || norm.contains("xt")
+                                                || norm.contains("vega")
+                                                || norm.contains("r9")
+                                                || norm.contains("r7")
+                                                || norm.contains("r5")
+                                                || norm.contains("hd ")
+                                                || norm.contains("series")
+                                                || norm.contains("discrete")
+                                                || !norm.contains("graphics")
+                                        ));
+
+                                    // Include NVIDIA, AMD Radeon, Intel Arc, and any hardware GPU
+                                    if is_nvidia || is_amd || is_intel_arc || is_discrete || norm.contains("intel") {
                                         gpus.push(GpuDevice {
                                             id: id_str.to_string(),
                                             name: name.to_string(),
-                                            is_discrete: true,
+                                            is_discrete,
                                         });
                                     }
                                 }
@@ -310,6 +345,9 @@ fn get_available_gpus() -> Vec<GpuDevice> {
         }
     }
 
+    // Sort so discrete/dedicated GPUs come first
+    gpus.sort_by(|a, b| b.is_discrete.cmp(&a.is_discrete));
+
     gpus
 }
 
@@ -320,17 +358,23 @@ async fn upscale_image(
     file_name: String,
     image_bytes: Option<Vec<u8>>,
     scale: u32,
-    _gpu_id: Option<String>,
+    gpu_id: Option<String>,
 ) -> Result<String, String> {
     if scale != 2 && scale != 3 && scale != 4 {
         return Err("Scale must be 2, 3, or 4".to_string());
     }
 
-    // Strictly enforce dedicated GPU requirement
+    // Ensure at least one hardware GPU is detected
     let detected_gpus = get_available_gpus();
-    let dedicated_gpu = detected_gpus.first().ok_or_else(|| {
-        "No dedicated GPU detected. Lucent strictly requires a dedicated NVIDIA or AMD graphics card to perform GPU upscaling.".to_string()
-    })?;
+    if detected_gpus.is_empty() {
+        return Err("No compatible NVIDIA or AMD Radeon GPU detected. Lucent requires a Vulkan-capable graphics card.".to_string());
+    }
+
+    // Select the requested GPU ID, or the first available GPU (preferred discrete)
+    let target_gpu_id = match gpu_id.as_deref() {
+        Some(id) if id != "auto" && detected_gpus.iter().any(|g| g.id == id) => id.to_string(),
+        _ => detected_gpus[0].id.clone(),
+    };
 
     let project_root = find_project_root();
     let exe_path = project_root
@@ -397,7 +441,7 @@ async fn upscale_image(
         "-m", models_dir.to_str().unwrap_or("models"),
         "-n", "realesrgan-x4plus",
         "-s", &scale.to_string(),
-        "-g", &dedicated_gpu.id,
+        "-g", &target_gpu_id,
     ]);
 
     #[cfg(target_os = "windows")]
@@ -491,6 +535,8 @@ pub fn run() {
                         apply_dark_titlebar_hwnd(hwnd.0);
                     }
                 }
+                // Automatically ensure Explorer right-click context menu is registered on startup
+                let _ = register_context_menu();
             }
             Ok(())
         })

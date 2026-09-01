@@ -5,3 +5,14 @@ export function formatBytes(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
+
+export function formatGpuName(name: string): string {
+  return name
+    .replace(/\(TM\)|\(R\)/gi, "")
+    .replace("NVIDIA GeForce", "NVIDIA")
+    .replace("Laptop GPU", "")
+    .replace("Series", "")
+    .replace("Graphics", "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
